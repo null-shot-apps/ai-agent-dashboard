@@ -23,6 +23,23 @@ interface Recommendation {
   icon: string;
 }
 
+interface Payment {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: 'Monthly' | 'Yearly' | 'Weekly' | 'Quarterly';
+  nextPaymentDate: Date;
+  category: string;
+  icon: string;
+  history: PaymentHistory[];
+}
+
+interface PaymentHistory {
+  date: Date;
+  amount: number;
+  status: 'completed' | 'pending' | 'failed';
+}
+
 export default function CryptoPortfolio() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,6 +49,17 @@ export default function CryptoPortfolio() {
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const [amount, setAmount] = useState('');
   const [dismissedRecommendations, setDismissedRecommendations] = useState<string[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [paymentForm, setPaymentForm] = useState({
+    name: '',
+    amount: '',
+    frequency: 'Monthly' as Payment['frequency'],
+    nextPaymentDate: '',
+    category: '',
+    icon: '💳'
+  });
 
   // Mock AI recommendations (in production, this would come from an API)
   const recommendations: Recommendation[] = [
@@ -178,6 +206,110 @@ export default function CryptoPortfolio() {
     }
   };
 
+  // Payment management functions
+  const addOrUpdatePayment = () => {
+    if (!paymentForm.name || !paymentForm.amount || !paymentForm.nextPaymentDate) return;
+
+    const paymentData: Payment = {
+      id: editingPayment?.id || Date.now().toString(),
+      name: paymentForm.name,
+      amount: parseFloat(paymentForm.amount),
+      frequency: paymentForm.frequency,
+      nextPaymentDate: new Date(paymentForm.nextPaymentDate),
+      category: paymentForm.category || 'Other',
+      icon: paymentForm.icon,
+      history: editingPayment?.history || []
+    };
+
+    if (editingPayment) {
+      setPayments(payments.map(p => p.id === editingPayment.id ? paymentData : p));
+    } else {
+      setPayments([...payments, paymentData]);
+    }
+
+    resetPaymentForm();
+  };
+
+  const deletePayment = (id: string) => {
+    setPayments(payments.filter(p => p.id !== id));
+  };
+
+  const editPayment = (payment: Payment) => {
+    setEditingPayment(payment);
+    setPaymentForm({
+      name: payment.name,
+      amount: payment.amount.toString(),
+      frequency: payment.frequency,
+      nextPaymentDate: payment.nextPaymentDate.toISOString().split('T')[0],
+      category: payment.category,
+      icon: payment.icon
+    });
+    setShowPaymentModal(true);
+  };
+
+  const resetPaymentForm = () => {
+    setShowPaymentModal(false);
+    setEditingPayment(null);
+    setPaymentForm({
+      name: '',
+      amount: '',
+      frequency: 'Monthly',
+      nextPaymentDate: '',
+      category: '',
+      icon: '💳'
+    });
+  };
+
+  const simulatePayment = (paymentId: string) => {
+    setPayments(payments.map(payment => {
+      if (payment.id === paymentId) {
+        const newHistory: PaymentHistory = {
+          date: new Date(),
+          amount: payment.amount,
+          status: 'completed'
+        };
+        
+        // Calculate next payment date
+        const nextDate = new Date(payment.nextPaymentDate);
+        switch (payment.frequency) {
+          case 'Weekly':
+            nextDate.setDate(nextDate.getDate() + 7);
+            break;
+          case 'Monthly':
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+          case 'Quarterly':
+            nextDate.setMonth(nextDate.getMonth() + 3);
+            break;
+          case 'Yearly':
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            break;
+        }
+
+        return {
+          ...payment,
+          nextPaymentDate: nextDate,
+          history: [newHistory, ...payment.history]
+        };
+      }
+      return payment;
+    }));
+  };
+
+  const getDaysUntilPayment = (date: Date) => {
+    const today = new Date();
+    const paymentDate = new Date(date);
+    const diffTime = paymentDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getPaymentStatus = (daysUntil: number) => {
+    if (daysUntil < 0) return { text: 'Overdue', color: 'text-red-400 bg-red-400/10' };
+    if (daysUntil <= 3) return { text: 'Due Soon', color: 'text-yellow-400 bg-yellow-400/10' };
+    return { text: 'Upcoming', color: 'text-green-400 bg-green-400/10' };
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
       <div className="max-w-6xl mx-auto">
@@ -229,6 +361,118 @@ export default function CryptoPortfolio() {
                 </button>
               </div>
             ))
+          )}
+        </div>
+
+        {/* Payment Scheduling Section */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">💳</div>
+              <div>
+                <h2 className="text-3xl font-bold">Payment Schedule</h2>
+                <p className="text-gray-300">Track your recurring subscriptions and payments</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-6 py-3 rounded-xl font-semibold transition-all"
+            >
+              + Add Payment
+            </button>
+          </div>
+
+          {payments.length === 0 ? (
+            <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-12 text-center border border-white/10">
+              <p className="text-gray-400 text-lg">No scheduled payments yet. Add your first subscription!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {payments.map((payment) => {
+                const daysUntil = getDaysUntilPayment(payment.nextPaymentDate);
+                const status = getPaymentStatus(daysUntil);
+                
+                return (
+                  <div key={payment.id} className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="text-4xl">{payment.icon}</div>
+                        <div>
+                          <h3 className="text-xl font-bold">{payment.name}</h3>
+                          <p className="text-sm text-gray-400">{payment.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${status.color}`}>
+                          {status.text}
+                        </span>
+                        <button
+                          onClick={() => editPayment(payment)}
+                          className="text-blue-400 hover:text-blue-300 transition-colors px-3 py-1"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deletePayment(payment.id)}
+                          className="text-red-400 hover:text-red-300 transition-colors px-3 py-1"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-xs text-gray-400 mb-1">Amount</p>
+                        <p className="text-2xl font-bold">${payment.amount.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-xs text-gray-400 mb-1">Frequency</p>
+                        <p className="text-lg font-semibold">{payment.frequency}</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-xs text-gray-400 mb-1">Next Payment</p>
+                        <p className="text-lg font-semibold">{payment.nextPaymentDate.toLocaleDateString()}</p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-xs text-gray-400 mb-1">Days Until</p>
+                        <p className="text-2xl font-bold">{daysUntil > 0 ? daysUntil : 0}</p>
+                      </div>
+                    </div>
+
+                    {/* Payment History */}
+                    {payment.history.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm font-semibold text-gray-300 mb-2">Payment History</p>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {payment.history.slice(0, 5).map((hist, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-white/5 rounded-lg p-2 text-sm">
+                              <span className="text-gray-400">{hist.date.toLocaleDateString()}</span>
+                              <span className="font-semibold">${hist.amount.toFixed(2)}</span>
+                              <span className={`px-2 py-1 rounded ${
+                                hist.status === 'completed' ? 'bg-green-400/10 text-green-400' :
+                                hist.status === 'pending' ? 'bg-yellow-400/10 text-yellow-400' :
+                                'bg-red-400/10 text-red-400'
+                              }`}>
+                                {hist.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Simulate Payment Button */}
+                    <button
+                      onClick={() => simulatePayment(payment.id)}
+                      className="mt-4 w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-4 py-2 rounded-xl font-semibold transition-all"
+                    >
+                      Simulate Payment
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -303,6 +547,116 @@ export default function CryptoPortfolio() {
             </div>
           )}
         </div>
+
+        {/* Add/Edit Payment Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-white/20 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4">{editingPayment ? 'Edit Payment' : 'Add Payment'}</h2>
+              
+              <div className="space-y-4">
+                {/* Icon Selector */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Icon</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['💳', '📺', '🎵', '🎮', '☁️', '📱', '🏋️', '🍕', '🚗', '🏠'].map(icon => (
+                      <button
+                        key={icon}
+                        onClick={() => setPaymentForm({...paymentForm, icon})}
+                        className={`text-3xl p-2 rounded-xl transition-all ${
+                          paymentForm.icon === icon ? 'bg-purple-500/30 ring-2 ring-purple-500' : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Subscription Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Netflix, Spotify"
+                    value={paymentForm.name}
+                    onChange={(e) => setPaymentForm({...paymentForm, name: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Amount ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm({...paymentForm, amount: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+
+                {/* Frequency */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Frequency</label>
+                  <select
+                    value={paymentForm.frequency}
+                    onChange={(e) => setPaymentForm({...paymentForm, frequency: e.target.value as Payment['frequency']})}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Weekly">Weekly</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Yearly">Yearly</option>
+                  </select>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Category</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Entertainment, Utilities"
+                    value={paymentForm.category}
+                    onChange={(e) => setPaymentForm({...paymentForm, category: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Next Payment Date */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Next Payment Date</label>
+                  <input
+                    type="date"
+                    value={paymentForm.nextPaymentDate}
+                    onChange={(e) => setPaymentForm({...paymentForm, nextPaymentDate: e.target.value})}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={resetPaymentForm}
+                  className="flex-1 bg-white/10 hover:bg-white/20 px-4 py-3 rounded-xl font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addOrUpdatePayment}
+                  disabled={!paymentForm.name || !paymentForm.amount || !paymentForm.nextPaymentDate}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-3 rounded-xl font-semibold transition-all"
+                >
+                  {editingPayment ? 'Update' : 'Add'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add Token Modal */}
         {showAddModal && (
@@ -396,6 +750,11 @@ export default function CryptoPortfolio() {
     </div>
   );
 }
+
+
+
+
+
 
 
 
