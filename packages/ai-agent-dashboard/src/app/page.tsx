@@ -66,9 +66,9 @@ export default function CryptoPortfolio() {
     {
       id: '1',
       protocol: 'Aave',
-      type: 'staking',
+      type: 'staking' as const,
       apy: 8.5,
-      risk: 'Low',
+      risk: 'Low' as const,
       tvl: 5200000000,
       description: 'Stake USDC for stable returns with minimal risk',
       icon: '🏦'
@@ -76,9 +76,9 @@ export default function CryptoPortfolio() {
     {
       id: '2',
       protocol: 'Uniswap V3',
-      type: 'liquidity',
+      type: 'liquidity' as const,
       apy: 24.3,
-      risk: 'Medium',
+      risk: 'Medium' as const,
       tvl: 3800000000,
       description: 'Provide liquidity to ETH/USDC pool',
       icon: '🦄'
@@ -86,9 +86,9 @@ export default function CryptoPortfolio() {
     {
       id: '3',
       protocol: 'Compound',
-      type: 'yield-farming',
+      type: 'yield-farming' as const,
       apy: 12.7,
-      risk: 'Low',
+      risk: 'Low' as const,
       tvl: 2900000000,
       description: 'Earn COMP rewards by supplying DAI',
       icon: '🌾'
@@ -96,9 +96,9 @@ export default function CryptoPortfolio() {
     {
       id: '4',
       protocol: 'Curve Finance',
-      type: 'liquidity',
+      type: 'liquidity' as const,
       apy: 18.9,
-      risk: 'Medium',
+      risk: 'Medium' as const,
       tvl: 4100000000,
       description: 'Optimize stablecoin yields with low slippage',
       icon: '📈'
@@ -106,9 +106,9 @@ export default function CryptoPortfolio() {
     {
       id: '5',
       protocol: 'Lido',
-      type: 'staking',
+      type: 'staking' as const,
       apy: 4.2,
-      risk: 'Low',
+      risk: 'Low' as const,
       tvl: 9500000000,
       description: 'Liquid staking for Ethereum 2.0',
       icon: '⚡'
@@ -116,9 +116,9 @@ export default function CryptoPortfolio() {
     {
       id: '6',
       protocol: 'Yearn Finance',
-      type: 'yield-farming',
+      type: 'yield-farming' as const,
       apy: 32.1,
-      risk: 'High',
+      risk: 'High' as const,
       tvl: 1200000000,
       description: 'Automated yield optimization strategies',
       icon: '🎯'
@@ -135,7 +135,7 @@ export default function CryptoPortfolio() {
     setIsSearching(true);
     try {
       const response = await fetch(`https://api.coingecko.com/api/v3/search?query=${query}`);
-      const data = await response.json();
+      const data = await response.json() as { coins: any[] };
       setSearchResults(data.coins.slice(0, 10));
     } catch (error) {
       console.error('Search error:', error);
@@ -149,7 +149,7 @@ export default function CryptoPortfolio() {
 
     try {
       const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${selectedCoin.id}&vs_currencies=usd`);
-      const priceData = await response.json();
+      const priceData = await response.json() as Record<string, { usd: number }>;
       const currentPrice = priceData[selectedCoin.id]?.usd || 0;
 
       const newHolding: Holding = {
@@ -785,6 +785,7 @@ export default function CryptoPortfolio() {
     </div>
   );
 }
+
 
 
 
