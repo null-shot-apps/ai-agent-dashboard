@@ -330,28 +330,6 @@ export default function CryptoPortfolio() {
           <p className="text-gray-300">Track your cryptocurrency holdings</p>
         </div>
 
-        {/* Wallet Connection */}
-        <div className="mb-6">
-          <WalletConnect 
-            onWalletConnected={(address) => {
-              console.log('Wallet connected:', address);
-            }}
-            onBalancesFetched={(tokens) => {
-              // Auto-import tokens from wallet
-              const newHoldings = tokens.map((token: any) => ({
-                id: token.id,
-                coinId: token.id,
-                name: token.name,
-                symbol: token.symbol.toUpperCase(),
-                amount: token.amount || 0,
-                currentPrice: token.current_price,
-                image: token.image,
-              }));
-              setHoldings(newHoldings);
-            }}
-          />
-        </div>
-
         {/* Total Value Card */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
           <p className="text-gray-300 text-sm mb-2">Total Portfolio Value</p>
