@@ -206,6 +206,16 @@ export default function CryptoPortfolio() {
     }
   };
 
+  // Handle investment action
+  const handleInvest = (recommendation: Recommendation) => {
+    alert(`Investment initiated for ${recommendation.protocol}!\n\nThis would connect to ${recommendation.protocol} and initiate the investment process.\n\nIn production, this would:\n- Connect your wallet\n- Approve token spending\n- Execute the investment transaction`);
+  };
+
+  // Handle learn more action
+  const handleLearnMore = (recommendation: Recommendation) => {
+    alert(`${recommendation.protocol} Details:\n\nType: ${getTypeBadge(recommendation.type)}\nAPY: ${recommendation.apy}%\nRisk Level: ${recommendation.risk}\nTVL: ${(recommendation.tvl / 1000000000).toFixed(1)}B\n\n${recommendation.description}\n\nIn production, this would open a detailed view with:\n- Historical performance\n- Risk analysis\n- User reviews\n- Step-by-step investment guide`);
+  };
+
   // Payment management functions
   const addOrUpdatePayment = () => {
     if (!paymentForm.name || !paymentForm.amount || !paymentForm.nextPaymentDate) return;
@@ -353,12 +363,31 @@ export default function CryptoPortfolio() {
                   <p className="text-2xl font-bold">${(holding.amount * holding.currentPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <p className="text-gray-400">{holding.amount} {holding.symbol} @ ${holding.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</p>
                 </div>
-                <button
-                  onClick={() => removeHolding(holding.id)}
-                  className="ml-4 text-red-400 hover:text-red-300 transition-colors"
-                >
-                  Remove
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const newAmount = prompt(`Update amount for ${holding.name}:`, holding.amount.toString());
+                      if (newAmount && parseFloat(newAmount) > 0) {
+                        setHoldings(holdings.map(h => 
+                          h.id === holding.id ? {...h, amount: parseFloat(newAmount)} : h
+                        ));
+                      }
+                    }}
+                    className="text-blue-400 hover:text-blue-300 transition-colors px-3 py-1 rounded-lg hover:bg-blue-400/10"
+                  >
+                    Edit Amount
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove ${holding.name} from your portfolio?`)) {
+                        removeHolding(holding.id);
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-300 transition-colors px-3 py-1 rounded-lg hover:bg-red-400/10"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -535,10 +564,16 @@ export default function CryptoPortfolio() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-3">
-                    <button className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-4 py-2 rounded-xl font-semibold transition-all">
+                    <button 
+                      onClick={() => handleInvest(rec)}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-4 py-2 rounded-xl font-semibold transition-all hover:scale-105 active:scale-95"
+                    >
                       Invest Now
                     </button>
-                    <button className="flex-1 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl font-semibold transition-colors">
+                    <button 
+                      onClick={() => handleLearnMore(rec)}
+                      className="flex-1 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl font-semibold transition-colors hover:scale-105 active:scale-95"
+                    >
                       Learn More
                     </button>
                   </div>
@@ -750,6 +785,7 @@ export default function CryptoPortfolio() {
     </div>
   );
 }
+
 
 
 
